@@ -1,0 +1,27 @@
+version: 2
+
+seeds:
+  - name: priority_sla_targets
+    description: >
+      The standard SLA target for each priority. 99% of tickets carry these
+      targets; the other 779 are flagged as non-standard rather than changed.
+    config:
+      column_types:
+        priority: varchar
+        priority_rank: integer
+        standard_sla_target_hours: integer
+    columns:
+      - name: priority
+        description: Priority name. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: priority_rank
+        description: Sort order, 1 for the most urgent.
+        data_tests:
+          - unique
+          - not_null
+      - name: standard_sla_target_hours
+        description: Standard SLA target in hours for this priority.
+        data_tests:
+          - not_null

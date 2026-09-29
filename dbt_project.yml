@@ -6,8 +6,13 @@ model-paths: ["models"]
 analysis-paths: ["analyses"]
 test-paths: ["tests"]
 macro-paths: ["macros"]
+seed-paths: ["seeds"]
 
 clean-targets: ["target", "dbt_packages"]
+
+seeds:
+  ticket_analytics:
+    +schema: reference
 
 models:
   ticket_analytics:

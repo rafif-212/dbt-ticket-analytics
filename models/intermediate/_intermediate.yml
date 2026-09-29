@@ -1,0 +1,77 @@
+version: 2
+
+models:
+  - name: int_tickets_enriched
+    description: >
+      One row per ticket with durations derived from the dates, the SLA
+      outcome, the regional holiday match and the data quality rules. Supplied
+      figures are carried alongside with checks on whether they fit the dates.
+    columns:
+      - name: ticket_id
+        description: Ticket identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: is_created_on_holiday
+        description: True when the ticket was created on a national or regional holiday in its region.
+      - name: created_holiday_name
+        description: Name of that holiday, if any.
+      - name: created_holiday_scope
+        description: National or Regional, if created on a holiday.
+      - name: resolution_days
+        description: Whole days from created date to resolved date. Null while unresolved.
+      - name: min_resolution_hours
+        description: Shortest possible elapsed hours given whole-day dates, 24 x (days - 1), floored at 0.
+      - name: max_resolution_hours
+        description: Longest possible elapsed hours given whole-day dates, 24 x (days + 1).
+      - name: standard_sla_target_hours
+        description: Standard target for the ticket's priority, from the priority_sla_targets seed.
+        data_tests:
+          - not_null
+      - name: is_sla_target_nonstandard
+        description: True when the ticket's own SLA target differs from the standard for its priority.
+        data_tests:
+          - not_null
+      - name: sla_outcome
+        description: >
+          met or breached when the date bounds settle it, undetermined when
+          they straddle the target (or the dates are invalid), not_resolved
+          while the ticket is open. Uses the ticket's own SLA target.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["met", "breached", "undetermined", "not_resolved"]
+      - name: is_supplied_resolution_consistent
+        description: True when the supplied resolution hours fall inside the bounds the dates allow. Null while unresolved.
+      - name: is_first_response_after_resolution
+        description: True when the supplied first response hours come after the latest possible resolution time. Null while unresolved.
+      - name: is_resolved_before_created
+        description: Quality rule. Resolved date is earlier than created date.
+      - name: is_created_outside_calendar
+        description: Quality rule. Created date falls outside the calendar range (1970 and 2099 junk dates).
+      - name: is_created_before_account
+        description: Quality rule. Ticket created before the customer account existed.
+      - name: is_resolved_outside_calendar
+        description: Quality rule. Resolved date falls outside the calendar range, so it can't join to the date dimension.
+      - name: has_data_quality_issue
+        description: True when any quality rule fails. Must agree with the supplied flag.
+        data_tests:
+          - not_null
+
+  - name: int_daily_workload
+    description: >
+      Daily intake, resolutions and open backlog rebuilt from unflagged
+      tickets, one row per calendar day including days with no tickets.
+    columns:
+      - name: workload_date
+        description: Calendar date. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tickets_opened
+        description: Unflagged tickets created on this date.
+      - name: tickets_resolved
+        description: Unflagged tickets resolved on this date.
+      - name: open_backlog
+        description: Unflagged tickets created by the end of this date and not yet resolved.
