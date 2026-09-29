@@ -1,5 +1,5 @@
--- Joining fct_tickets to all five dimensions must return every fact row
--- exactly once. A missing dimension row drops tickets from any report that
+-- Joining fct_tickets to all five dimensions must return every fact row once
+-- and only once. A missing dimension row drops tickets from any report that
 -- joins through it; a duplicated dimension key multiplies them. The
 -- relationships tests catch the first case but not the second.
 
