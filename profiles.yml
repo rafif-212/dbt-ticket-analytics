@@ -1,0 +1,9 @@
+# Kept in the project so a fresh clone builds without editing ~/.dbt.
+# The database file is created by load_data.py.
+ticket_analytics:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      path: ticket_analytics.duckdb
+      threads: 4
