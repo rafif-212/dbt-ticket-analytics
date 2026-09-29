@@ -23,5 +23,5 @@ summary as (
 
 select *
 from summary
-where day_rows <> date_diff('day', first_date, last_date) + 1
+where day_rows <> {{ dbt.datediff('first_date', 'last_date', 'day') }} + 1
    or distinct_days <> day_rows

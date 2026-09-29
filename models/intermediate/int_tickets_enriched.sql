@@ -34,7 +34,7 @@ joined as (
         priority_targets.standard_sla_target_hours,
         holidays.holiday_name   as created_holiday_name,
         holidays.holiday_scope  as created_holiday_scope,
-        date_diff('day', tickets.created_date, tickets.resolved_date) as resolution_days
+        {{ dbt.datediff('tickets.created_date', 'tickets.resolved_date', 'day') }} as resolution_days
 
     from tickets
     cross join calendar_range
