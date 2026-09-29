@@ -1,0 +1,16 @@
+# Local copy of the source Parquet files; the load script fetches them instead
+Clean/
+
+# DuckDB warehouse is rebuilt from the load script, never committed
+*.duckdb
+*.duckdb.wal
+
+# dbt build output
+target/
+dbt_packages/
+logs/
+
+# Python environment and secrets
+.venv/
+.env
+__pycache__/
