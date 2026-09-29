@@ -1,0 +1,253 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: >
+      One row per day from 1 Jul 2023 to 31 Mar 2025 with no gaps, plus two
+      special members: -1 for invalid dates and -2 for not yet resolved. Days
+      with no tickets are kept so the 2025 coverage gap stays visible.
+    columns:
+      - name: date_key
+        description: Date as an integer in yyyymmdd form, or -1 / -2 for the special members. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: calendar_date
+        description: Calendar date. Null only on the special members.
+      - name: calendar_year
+        description: Calendar year.
+      - name: calendar_quarter
+        description: Calendar quarter, 1 to 4.
+      - name: calendar_month
+        description: Calendar month, 1 to 12.
+      - name: month_name
+        description: Month name.
+      - name: iso_day_of_week
+        description: Day of week, 1 for Monday to 7 for Sunday.
+      - name: day_name
+        description: Day name.
+      - name: is_weekend
+        description: True on Saturdays and Sundays.
+      - name: is_business_day
+        description: True on weekdays that are not national holidays.
+      - name: is_national_holiday
+        description: True on NZ national public holidays. Regional holidays are on fct_tickets, since they depend on the ticket's region.
+      - name: national_holiday_name
+        description: Name of the national holiday, if any.
+      - name: is_long_weekend_holiday
+        description: True on national holidays that create a long weekend.
+
+  - name: dim_customer_account
+    description: One row per customer account, with the attributes that are stable within it.
+    columns:
+      - name: customer_account_id
+        description: Source customer_id. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: company_name
+        description: Company on the account.
+      - name: account_type
+        description: Business or Residential.
+      - name: industry
+        description: Industry of the account.
+      - name: account_manager
+        description: Account manager, or 'Unassigned'.
+      - name: monthly_contract_value
+        description: Monthly contract value.
+      - name: account_created_date
+        description: Date the account was created.
+      - name: region
+        description: NZ region of the account.
+
+  - name: dim_assignee
+    description: One row per assignee with their team, plus an Unassigned member.
+    columns:
+      - name: assignee_key
+        description: Assignee name, or 'Unassigned'. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: assignee_name
+        description: Assignee name.
+      - name: assignee_team
+        description: Team the assignee belongs to.
+        data_tests:
+          - not_null
+
+  - name: dim_category
+    description: One row per cleaned ticket category.
+    columns:
+      - name: category_key
+        description: Cleaned category name. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: category
+        description: Cleaned category name.
+      - name: raw_spelling_count
+        description: How many different raw spellings were cleaned into this category.
+
+  - name: dim_priority
+    description: One row per priority with its standard SLA target.
+    columns:
+      - name: priority_key
+        description: Priority name. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: priority
+        description: Priority name.
+      - name: priority_rank
+        description: Sort order, 1 for the most urgent.
+      - name: standard_sla_target_hours
+        description: Standard SLA target in hours.
+
+  - name: fct_tickets
+    description: >
+      One row per ticket, all 100,851 of them. The 702 tickets that fail a
+      quality rule are kept and flagged with has_data_quality_issue; filter on
+      it for any duration or SLA figure.
+    columns:
+      - name: ticket_id
+        description: Ticket identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: created_date_key
+        description: Key to dim_date for the created date, or -1 if the date is invalid.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: resolved_date_key
+        description: Key to dim_date for the resolved date, -2 if not resolved, -1 if the date is invalid.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: customer_account_id
+        description: Key to dim_customer_account.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_customer_account')
+                field: customer_account_id
+      - name: assignee_key
+        description: Key to dim_assignee, 'Unassigned' when the ticket has no assignee.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_assignee')
+                field: assignee_key
+      - name: category_key
+        description: Key to dim_category.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_category')
+                field: category_key
+      - name: priority_key
+        description: Key to dim_priority.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_priority')
+                field: priority_key
+      - name: created_date
+        description: Created date as recorded, including invalid ones.
+      - name: resolved_date
+        description: Resolved date as recorded, including invalid ones.
+      - name: status
+        description: Current ticket status.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Open", "In Progress", "Pending Customer", "Resolved", "Closed"]
+      - name: channel
+        description: Channel the ticket came in through.
+      - name: service_area
+        description: Product or service the ticket is about.
+      - name: region
+        description: NZ region of the account.
+      - name: customer_segment
+        description: Customer segment recorded on this ticket.
+      - name: subscription_type
+        description: Subscription type recorded on this ticket.
+      - name: is_escalated
+        description: Whether the ticket was escalated.
+      - name: is_created_on_holiday
+        description: True when created on a national or regional holiday in the ticket's region.
+      - name: created_holiday_name
+        description: Name of that holiday.
+      - name: created_holiday_scope
+        description: National or Regional.
+      - name: is_resolved
+        description: True when the ticket has a resolved date.
+      - name: resolution_days
+        description: Whole days from created to resolved.
+      - name: min_resolution_hours
+        description: Shortest possible elapsed hours given whole-day dates.
+      - name: max_resolution_hours
+        description: Longest possible elapsed hours given whole-day dates.
+      - name: sla_target_hours
+        description: The ticket's own SLA target in hours.
+      - name: is_sla_target_nonstandard
+        description: True when the target differs from the standard for the priority.
+      - name: sla_outcome
+        description: met, breached, undetermined or not_resolved.
+      - name: csat_score
+        description: Satisfaction score from 1 to 5.
+      - name: issue_complexity_score
+        description: Complexity score from 1 to 10, as supplied.
+      - name: supplied_first_response_hours
+        description: Hours to first response, as supplied and unverifiable.
+      - name: supplied_resolution_hours
+        description: Hours to resolution, as supplied. Does not reconcile with the dates.
+      - name: supplied_is_sla_breached
+        description: SLA breach flag, as supplied. Does not track resolution time.
+      - name: is_supplied_resolution_consistent
+        description: True when the supplied resolution hours fit the dates.
+      - name: is_first_response_after_resolution
+        description: True when the supplied first response comes after the latest possible resolution time.
+      - name: has_data_quality_issue
+        description: True when any quality rule fails.
+      - name: is_resolved_before_created
+        description: Quality rule. Resolved before created.
+      - name: is_created_outside_calendar
+        description: Quality rule. Created date outside the calendar range.
+      - name: is_created_before_account
+        description: Quality rule. Created before the account existed.
+      - name: is_resolved_outside_calendar
+        description: Quality rule. Resolved date outside the calendar range.
+
+  - name: fct_daily_workload
+    description: >
+      One row per calendar day with intake, resolutions and open backlog from
+      unflagged tickets. Mirrors the daily_workload table in the Power BI model.
+    columns:
+      - name: date_key
+        description: Key to dim_date. Primary key.
+        data_tests:
+          - unique
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('dim_date')
+                field: date_key
+      - name: workload_date
+        description: Calendar date.
+      - name: tickets_opened
+        description: Unflagged tickets created on this date.
+      - name: tickets_resolved
+        description: Unflagged tickets resolved on this date.
+      - name: open_backlog
+        description: Unflagged tickets still open at the end of this date.
