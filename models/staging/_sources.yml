@@ -1,0 +1,36 @@
+version: 2
+
+sources:
+  - name: raw
+    description: >
+      The cleaned output of the Ticket-analytics-pipeline project, loaded
+      unchanged by load_data.py. The data is synthetic.
+    schema: raw
+    tables:
+      - name: tickets_clean
+        description: >
+          One row per support ticket (100,851 rows), cleaned in pandas. Carries
+          both the raw category spelling and the cleaned category, and the
+          supplied data_quality_flag.
+        columns:
+          - name: csat_score
+            description: Satisfaction score, stored as a double.
+            data_tests:
+              # Staging casts this to an integer, which would silently round a
+              # fractional score. Fail instead if one ever appears.
+              - accepted_values:
+                  arguments:
+                    values: [1, 2, 3, 4, 5]
+                    quote: false
+      - name: nz_calendar
+        description: One row per day from 1 Jul 2023 to 31 Mar 2025, with national holiday and business-day flags.
+      - name: nz_holiday_days
+        description: >
+          One row per region and holiday date. National holidays appear once
+          for each of the 12 regions; regional anniversary days appear only for
+          their region.
+      - name: daily_workload
+        description: >
+          Daily intake and open backlog as calculated by the original project,
+          from unflagged tickets only. Used here to check the dbt rebuild of
+          the same table.

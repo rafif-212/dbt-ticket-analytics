@@ -1,0 +1,231 @@
+version: 2
+
+models:
+  - name: stg_tickets
+    description: >
+      One row per ticket from tickets_clean. Columns renamed, cast and trimmed;
+      no joins and no business logic. Supplied figures that don't reconcile
+      are kept under a supplied_ prefix.
+    columns:
+      - name: ticket_id
+        description: Ticket identifier. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_account_id
+        description: >
+          Source customer_id. Behaves as an account key: company, region,
+          account type, industry and account manager are stable within it,
+          while customer names and emails are not.
+        data_tests:
+          - not_null
+      - name: company_name
+        description: Company on the account. Null for most residential accounts.
+      - name: account_type
+        description: Business or Residential.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Business", "Residential"]
+      - name: industry
+        description: Industry of the account. Null for residential accounts.
+      - name: account_manager
+        description: Account manager name, or 'Unassigned' as supplied.
+      - name: monthly_contract_value
+        description: Monthly contract value of the account.
+      - name: account_created_date
+        description: Date the customer account was created.
+      - name: region
+        description: NZ region of the account. Used to match regional holidays.
+        data_tests:
+          - not_null
+          # The regional holiday flag joins on region; a region missing from
+          # the holiday table would silently get no regional holidays.
+          - relationships:
+              arguments:
+                to: ref('stg_nz_holiday_days')
+                field: region
+      - name: customer_name
+        description: Contact name on the ticket. Not stable within an account.
+      - name: customer_email
+        description: Contact email on the ticket.
+      - name: billing_contact_email
+        description: Billing contact email, where supplied.
+      - name: customer_segment
+        description: Corporate, Individual or Small Business. Varies between tickets on the same account.
+      - name: subscription_type
+        description: Free, Basic, Premium or Enterprise. Varies between tickets on the same account.
+      - name: customer_tenure_months
+        description: Account tenure in months at the time of the ticket.
+      - name: previous_ticket_count
+        description: Number of earlier tickets, as supplied.
+      - name: service_area
+        description: Product or service the ticket is about.
+        data_tests:
+          - not_null
+      - name: category_raw
+        description: Category as originally entered (32 spellings of 10 categories). Kept for traceability.
+      - name: category
+        description: Cleaned category from the source's category_clean column.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - Account Suspension
+                  - Bug Report
+                  - Data Sync Issue
+                  - Feature Request
+                  - Login Issue
+                  - Payment Problem
+                  - Performance Issue
+                  - Refund Request
+                  - Security Concern
+                  - Subscription Cancellation
+      - name: priority
+        description: Ticket priority.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Urgent", "High", "Medium", "Low"]
+      - name: sla_target_hours
+        description: SLA target for this ticket in hours, as supplied.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [4, 8, 24, 48]
+                quote: false
+      - name: status
+        description: Current ticket status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Open", "In Progress", "Pending Customer", "Resolved", "Closed"]
+      - name: channel
+        description: Channel the ticket came in through.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ["Web Form", "Phone", "Chat", "Email", "Social Media"]
+      - name: issue_description
+        description: Templated issue text.
+      - name: resolution_notes
+        description: Templated resolution text.
+      - name: issue_complexity_score
+        description: Complexity score from 1 to 10, as supplied.
+      - name: operating_system
+        description: Customer operating system.
+      - name: browser
+        description: Customer browser, where relevant.
+      - name: assignee_team
+        description: Team the ticket is assigned to. Null when unassigned.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["Support", "Billing", "Credit", "Provisioning"]
+      - name: assignee_name
+        description: Person the ticket is assigned to. Null when unassigned.
+      - name: created_date
+        description: Date the ticket was created.
+        data_tests:
+          - not_null
+      - name: resolved_date
+        description: Date the ticket was resolved. Null while the ticket is open.
+      - name: supplied_first_response_hours
+        description: >
+          Hours to first response, as supplied. There is no first-response
+          timestamp to check it against.
+        data_tests:
+          - not_null
+      - name: supplied_resolution_hours
+        description: >
+          Hours to resolution, as supplied. Does not reconcile with the created
+          and resolved dates; kept for comparison only.
+      - name: supplied_is_sla_breached
+        description: >
+          SLA breach flag, as supplied. Breach rates are ~50% whatever the
+          resolution time, so it is kept for comparison only.
+      - name: supplied_data_quality_flag
+        description: Flag set by the original cleaning for rows with date problems.
+        data_tests:
+          - not_null
+      - name: is_escalated
+        description: Whether the ticket was escalated.
+      - name: csat_score
+        description: Customer satisfaction score from 1 to 5. Null when unassigned.
+
+  - name: stg_nz_calendar
+    description: One row per calendar day with NZ national holiday and business-day flags.
+    columns:
+      - name: calendar_date
+        description: Calendar date. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: national_holiday_name
+        description: Name of the national holiday on this date, if any.
+      - name: is_national_holiday
+        description: True on NZ national public holidays.
+        data_tests:
+          - not_null
+      - name: is_weekend
+        description: True on Saturdays and Sundays.
+        data_tests:
+          - not_null
+      - name: is_business_day
+        description: True on weekdays that are not national holidays.
+        data_tests:
+          - not_null
+      - name: is_long_weekend_holiday
+        description: True on national holidays that create a long weekend.
+        data_tests:
+          - not_null
+
+  - name: stg_nz_holiday_days
+    description: One row per region and holiday date, national and regional.
+    columns:
+      - name: region_date_key
+        description: Region and date joined with an underscore, the key the Power BI model related on. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: region
+        description: NZ region.
+        data_tests:
+          - not_null
+      - name: holiday_date
+        description: Date of the holiday.
+        data_tests:
+          - not_null
+      - name: holiday_name
+        description: Name of the holiday.
+        data_tests:
+          - not_null
+      - name: holiday_scope
+        description: National or Regional.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["National", "Regional"]
+
+  - name: stg_daily_workload
+    description: Daily intake and open backlog as supplied by the original project.
+    columns:
+      - name: workload_date
+        description: Calendar date. Primary key.
+        data_tests:
+          - unique
+          - not_null
+      - name: tickets_opened
+        description: Unflagged tickets created on this date.
+        data_tests:
+          - not_null
+      - name: open_backlog
+        description: Unflagged tickets created on or before this date and not yet resolved by the end of it.
+        data_tests:
+          - not_null
